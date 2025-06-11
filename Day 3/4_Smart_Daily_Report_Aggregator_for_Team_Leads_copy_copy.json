@@ -1,0 +1,225 @@
+{
+  "name": "4 Smart Daily Report Aggregator for Team Leads copy copy",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 18
+            },
+            {},
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -380,
+        -80
+      ],
+      "id": "49c28a45-3378-4148-a47b-5a0489d15941",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1C5sIZg-KJLxNS58KdsQh12WLuv2VXTfgjh-hSUw6xNM",
+          "mode": "list",
+          "cachedResultName": "Daily report",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1C5sIZg-KJLxNS58KdsQh12WLuv2VXTfgjh-hSUw6xNM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1C5sIZg-KJLxNS58KdsQh12WLuv2VXTfgjh-hSUw6xNM/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        -160,
+        -80
+      ],
+      "id": "eb567c14-6b55-43c5-92a4-5887e44a21bb",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "usPQ35yzsSnHM9qw",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "kanmani.r.cfc@snsgroups.com",
+        "subject": "=Daily Team Update -",
+        "emailType": "text",
+        "message": "=Dear Kanmani mam,\n\nHere's the work status for your employees\n\n{{ $json.summary }}\n\nBest regards\nN8N AI\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        780,
+        -80
+      ],
+      "id": "719b414b-3234-4407-a274-d2e367eb2c1e",
+      "name": "Gmail",
+      "webhookId": "1e28919b-1da5-4ea8-a8fb-cc96f933c743",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Za5ofkURFocIrKtt",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Your are exper at analysing the data which is given by me and then i need you to assign me the category like : Planned,Completed and Blocked .\n\nso you can determine that by understanding the text which is given by me .The text data is : {{ $json[\"Update Text\"] }}.\n\nThen return me the data in the below reponse only :\n\nName : {{ $json[\"Team Member Name\"] }}\nUpdate text : {{ $json[\"Update Text\"] }}\nCategory : (Which is assigned by u).\n\n\n",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        100,
+        -80
+      ],
+      "id": "32c4e1c1-dbcc-4a02-9069-a1b15cd5e340",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        40,
+        120
+      ],
+      "id": "156b16db-73f4-44b1-ba1e-732a23e872e6",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Qara4S5PEfB3Su73",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "Test "
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        180,
+        120
+      ],
+      "id": "7cd88971-97a8-462b-bc0a-bc8dc3fa04bf",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize grouped storage\nconst grouped = {\n  Completed: [],\n  Blocked: [],\n  Planned: []\n};\n\n// Loop through each item\nitems.forEach(item => {\n  const raw = item.json.output || '';\n  const cleaned = raw.replace(/```/g, '').trim();\n\n  // Extract fields using regex or line parsing\n  const lines = cleaned.split('\\n');\n  const nameLine = lines.find(line => line.startsWith('Name:')) || '';\n  const updateLine = lines.find(line => line.startsWith('Update text:')) || '';\n  const categoryLine = lines.find(line => line.startsWith('Category:')) || '';\n\n  const name = nameLine.replace('Name:', '').trim();\n  const update = updateLine.replace('Update text:', '').trim();\n  const category = categoryLine.replace('Category:', '').trim().toLowerCase();\n\n  const entry = `- ${name}: ${update}`;\n\n  // Categorize\n  if (category.includes('complete')) grouped.Completed.push(entry);\n  else if (category.includes('block')) grouped.Blocked.push(entry);\n  else grouped.Planned.push(entry);\n});\n\n// Format the output\nconst summary = `\n📝 *Daily Team Summary Report*\n\n✅ Completed Tasks\n${grouped.Completed.length ? grouped.Completed.join('\\n') : 'None'}\n\n🚧 Blocked Tasks\n${grouped.Blocked.length ? grouped.Blocked.join('\\n') : 'None'}\n\n📅 Planned Tasks\n${grouped.Planned.length ? grouped.Planned.join('\\n') : 'None'}\n`;\n\nreturn [{\n  json: {\n    summary: summary.trim()\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        -80
+      ],
+      "id": "cd180703-73e9-47b5-b4bd-589215cc796d",
+      "name": "Code"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "68f68f84-18a0-4673-9ab8-542c3a963f85",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4e1831726c561545a3363a9d376312c2d92f25aef22d27de1ac39268c1dd6ab3"
+  },
+  "id": "vomVoi1tMrcWr9or",
+  "tags": []
+}
