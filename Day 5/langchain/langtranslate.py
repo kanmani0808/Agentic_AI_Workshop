@@ -1,0 +1,43 @@
+import streamlit as st
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import Runnable
+import os
+
+# ---------- SETUP GEMINI API KEY ----------
+os.environ["GOOGLE_API_KEY"] = "AIzaSyCuA5PVhod4jLcKExBfgIXwsV00z8rzxCk"  # Replace with your Gemini key
+
+# ---------- LANGCHAIN CONFIGURATION ----------
+llm = ChatGoogleGenerativeAI(model="models/gemini-1.5-flash", temperature=0.3)
+
+# Prompt template: English to French translation
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a translator that converts English to French."),
+    ("user", "Translate this sentence to French: {english_sentence}")
+])
+
+# Create the chain
+chain: Runnable = prompt | llm
+
+# ---------- STREAMLIT UI ----------
+st.set_page_config(page_title="English to French Translator", page_icon="🇫🇷")
+st.title("📘 English to French Translator using Gemini + LangChain")
+
+# Input box
+english_input = st.text_input("Enter an English sentence:", "")
+
+# Translate button
+if st.button("🔁 Translate to French"):
+    if english_input.strip() == "":
+        st.warning("⚠️ Please enter a sentence to translate.")
+    else:
+        try:
+            # Run the LangChain chain
+            response = chain.invoke({"english_sentence": english_input})
+            # Extract response text
+            french_translation = response.content
+            # Display result
+            st.success("✅ Translation Successful!")
+            st.text_area("🇫🇷 French Translation:", french_translation, height=150)
+        except Exception as e:
+            st.error(f"❌ An error occurred: {str(e)}")
